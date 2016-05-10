@@ -2,7 +2,7 @@
 
 SH_HOME="/home/sahinn/github/access-log"
 ACCESS_LOG='/var/log/nginx'
-KEY='sahinnluandun'
+KEY='111111'
 
 cd $SH_HOME
 
