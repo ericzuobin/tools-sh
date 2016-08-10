@@ -12,7 +12,8 @@ set password2 admin
 spawn ssh $name@$host
 expect {
     "(yes/no)?" {
-        send {"yes\n"; exp_continue}
+      send "yes\n"
+      expect "assword:" { send "$password\n" }
     }
     "assword:" {
         send "$password\n"
@@ -21,7 +22,8 @@ expect {
       send "ssh $name2@$domain$ip\n"
         expect {
             "(yes/no)?" {
-                send {"yes\n"; exp_continue}
+                send "yes\n"
+                expect "assword:" { send "$password2\n" }
             }
             "assword:" {
                 send "$password2\n"
