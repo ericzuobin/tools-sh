@@ -1,6 +1,7 @@
 #!/bin/bash
 #自己搭建的测试jenkins发布到自己虚拟机的一个脚本！
 #在jenkins中 使用ssh root执行即可
+#开发用，没有做回滚操作，如需要,可以把ROOT_BAK再回滚到ROOT，原则上是需要对所有的命令做check,这里只check部分重要的
 #配置环境
 job_home="/var/lib/jenkins/jobs/yygengine/workspace"
 targetFile=$job_home/target/ROOT.war
@@ -68,18 +69,26 @@ fi
 
 #替换新war
 echo "Begin to replace the war! "
-rm -rf $tomcat_base/$proc_name/ROOT/*
-if [ $? -eq 0 ];then
-     echo $tomcat_base/$proc_name/ROOT/ deleted!
+if [ -f $tomcat_base/$proc_name/ROOT_BAK/ ]; then
+  echo $tomcat_base/$proc_name/ROOT_BAK/ exits! plese check!
+  exit
 else
-     echo $tomcat_base/$proc_name/ROOT/ delete failed!
+  echo $tomcat_base/$proc_name/ROOT_BAK/ check success...
+fi
+
+mv  $tomcat_base/$proc_name/ROOT/ $tomcat_base/$proc_name/ROOT_BAK/
+if [ $? -eq 0 ];then
+     echo $tomcat_base/$proc_name/ROOT/ backup success...
+else
+     echo $tomcat_base/$proc_name/ROOT/ backup failed!!!
      exit
 fi
 
-cp $bak_home/ROOT.war $tomcat_base/$proc_name/ROOT/
+mkdir $tomcat_base/$proc_name/ROOT/
 
+cp $bak_home/ROOT.war $tomcat_base/$proc_name/ROOT/
 if [ $? -eq 0 ];then
-     echo Copy ROOT.war to $tomcat_base/$proc_name/ROOT/ success!
+     echo Copy ROOT.war to $tomcat_base/$proc_name/ROOT/ success...
 else
      echo Copy ROOT.war to $tomcat_base/$proc_name/ROOT/ failed!
      exit
@@ -100,10 +109,6 @@ rm $tomcat_base/$proc_name/ROOT/ROOT.war
 echo "Begin to comfigure the "$proc_name
 rm -rf $tomcat_base/$proc_name/ROOT/WEB-INF/classes/engine.properties
 cp /conf/yyg-engine/engine.properties $tomcat_base/$proc_name/ROOT/WEB-INF/classes/engine.properties
-#配置软连接
-rm -rf $tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy/*.xml
-ln -s $tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy-virtual-ticket/deploy-virtual-ticket.xml $tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy/applicationContext-virtual-ticket.xml
-ln -s $tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy-scanner.xml $tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy/applicationContext-scanner.xml
 
 if [ $? -eq 0 ];then
      echo Comfigure success!
@@ -112,6 +117,25 @@ else
      exit
 fi
 
+#配置软连接
+
+cp $base_home/bak/deploy-lottery-phase-general.xml $tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy-lottery-phase/
+
+ln_array=("$tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy-virtual-ticket/deploy-virtual-ticket.xml $tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy/applicationContext-virtual-ticket.xml"
+           "$tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy-scanner.xml $tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy/applicationContext-scanner.xml"
+           "$tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy-lottery-phase/deploy-lottery-phase-general.xml $tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy/applicationContext-phase.xml"
+           "$tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy-lottery/deploy-lottery-reward.xml $tomcat_base/$proc_name/ROOT/WEB-INF/classes/deploy/applicationContext-reward.xml")
+
+for ((i = 0; i < ${#ln_array[@]}; i++))
+do
+    ln -s ${ln_array[$i]}
+    if [ $? -eq 0 ];then
+            echo ln -s ${ln_array[$i]} success!!
+       else
+            echo ln -s ${ln_array[$i]} faild!! Please check!!!
+            exit
+     fi
+done
 
 #启动程序
 echo "Begine to start the "$proc_name" !!! "
@@ -125,4 +149,8 @@ else
 echo $proc_name " started! pids:"
      echo ${start_engine_pids[@]}
 fi
+
+#临时备份其实是可以不用删除的，以防代码有问题可以快速回滚
+echo remove $tomcat_base/$proc_name/ROOT_BAK/
+rm -rf $tomcat_base/$proc_name/ROOT_BAK/
 echo "Jenkins shell End !!! "
